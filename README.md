@@ -10,6 +10,8 @@ A streamlined, mobile-first task tracking component built with Next.js and Supab
 
 I built this component to solve the "task anxiety" caused by over-categorized todo apps. By stripping away folders, tags, and complex metadata, it functions as a "Micro-External Brain". It prioritizes what needs to be done _now_ and provides a gentle visual nudge for upcoming deadlines, allowing for high-speed data entry on mobile devices.
 
+This component has also been incorporated into my Life Traker project; you can check the [following link](https://github.com/cholateio/life-tracker).
+
 ## Features
 
 - **Smart Expiration Logic**: Automatically sets a 7-day default deadline for new tasks to prevent stagnant backlogs.
