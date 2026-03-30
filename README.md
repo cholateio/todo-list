@@ -4,7 +4,7 @@ A streamlined, mobile-first task tracking component built with Next.js and Supab
 
 ## Preview
 
-![Task List Overview](./public/todo_preview.jpg)
+![Task List Overview](./public/intro1.png)
 
 ## Why I Made This
 
@@ -17,6 +17,8 @@ I built this component to solve the "task anxiety" caused by over-categorized to
 - **24-Hour Retention Buffer**: Implements a "Recently Completed" section that persists for 24 hours. This allows for instant "undo" actions before permanent archival, preventing accidental touches on mobile.
 - **Optimistic UI Engine**: Toggling task status or adding new entries provides instant visual feedback through local state management before syncing with Supabase for a lag-free experience.
 - **Dual-Line Content Display**: Optimized for long task descriptions using CSS line-clamping, ensuring readability without increasing vertical footprint.
+
+![Demo 1](./public/intro2.png) ![Demo 2](./public/intro3.png)
 
 ## Tech Stack
 
