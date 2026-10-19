@@ -1,38 +1,38 @@
-## Todo List App
+# Todo List
 
-A streamlined, mobile-first task tracking component built with Next.js and Supabase. Focused on reducing cognitive load through automated urgency tracking and zero-friction entry.
+A single-page task list for people who want to jot down a chore in seconds and see what is due. Drop one component into your Next.js app, and you get a phone-friendly list that counts down to each deadline.
 
-## Preview
+![Task list with three open items, each showing days remaining, and a Recently Completed section below](./public/intro1.png)
 
-![Task List Overview](./public/intro1.png)
+- **Fast entry**: a round **+** button opens a form with just a task and a due date, which defaults to 7 days from today.
+- **Deadline countdown**: each task shows days left, "due today", or days overdue instead of a raw date.
+- **Undo window**: a checked task stays under Recently Completed for 24 hours, where unchecking it brings it back.
+- **No lag**: checking a task updates the screen first and saves to Supabase in the background; a failed save reloads the list.
 
-## Why I Made This
+<p>
+  <img src="./public/intro2.png" alt="Phone view of the task list" width="24%">
+  <img src="./public/intro3.png" alt="Phone view of the Add New Task form with a date picker" width="24%">
+</p>
 
-I built this component to solve the "task anxiety" caused by over-categorized todo apps. By stripping away folders, tags, and complex metadata, it functions as a "Micro-External Brain". It prioritizes what needs to be done _now_ and provides a gentle visual nudge for upcoming deadlines, allowing for high-speed data entry on mobile devices.
+The interface text is Traditional Chinese (for example "剩 6 天"); edit the strings in `TodoApp.jsx` to change it.
 
-This component has also been incorporated into my Life Traker project; you can check the [following link](https://github.com/cholateio/life-tracker).
+## How it works
 
-## Features
+```
+Browser (TodoApp.jsx) ──► Supabase client ──► "Todo" table in your Supabase project
+```
 
-- **Smart Expiration Logic**: Automatically sets a 7-day default deadline for new tasks to prevent stagnant backlogs.
-- **Dynamic Urgency Countdown**: Replaces static date strings with real-time calculations (e.g., "Due Today", "3 Days Remaining") for immediate priority assessment.
-- **24-Hour Retention Buffer**: Implements a "Recently Completed" section that persists for 24 hours. This allows for instant "undo" actions before permanent archival, preventing accidental touches on mobile.
-- **Optimistic UI Engine**: Toggling task status or adding new entries provides instant visual feedback through local state management before syncing with Supabase for a lag-free experience.
-- **Dual-Line Content Display**: Optimized for long task descriptions using CSS line-clamping, ensuring readability without increasing vertical footprint.
+No server code and no other service: the component talks to your Supabase project directly.
 
-![Demo 1](./public/intro2.png) ![Demo 2](./public/intro3.png)
+## Install
 
-## Tech Stack
+Needs a Next.js app (App Router) with Tailwind CSS, and a Supabase project.
 
-- **Framework**: Next.js (App Router)
-- **Database**: Supabase (PostgreSQL)
-- **Styling**: Tailwind CSS (Industrial Palette: `#E5E0DC` & `#3f4a4e`)
-- **Icons**: Lucide React
-- **Notifications**: Sonner
-
-## Database Setup
-
-Run the following SQL in your Supabase Editor to initialize the singular `Todo` table:
+1. Install the dependencies: `npm install @supabase/supabase-js sonner lucide-react`
+2. Copy `TodoApp.jsx` into your app and render it from a page, for example `app/todo/page.js` with `import TodoApp from './TodoApp'`.
+3. Create `lib/supabase.js` exporting a `supabase` client, since the component imports `@/lib/supabase`. Put your project URL and anon key in `.env.local`.
+4. Add sonner's `<Toaster />` to your root layout so error and success messages show.
+5. In Supabase, open **SQL Editor** and run:
 
 ```sql
 CREATE TABLE "Todo" (
@@ -40,10 +40,20 @@ CREATE TABLE "Todo" (
   content TEXT NOT NULL,
   due_date DATE,
   is_completed BOOLEAN DEFAULT FALSE,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Optimize query performance for active tasks
+-- Speeds up the query for open tasks
 CREATE INDEX idx_todo_active ON "Todo"(is_completed) WHERE is_completed = FALSE;
 ```
+
+6. Under **Authentication → Policies**, add policies for the `Todo` table that fit who may read and write. The component uses the public anon key and has no login.
+
+## Privacy & security
+
+Task text and dates go from the browser to your own Supabase project and nowhere else. The component has no analytics. Because it uses the public anon key, anyone who can reach that key can do whatever your table policies allow, so set policies before deploying publicly.
+
+## License
+
+[MIT](LICENSE)
