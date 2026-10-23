@@ -27,7 +27,7 @@ A single drop-in React component for a Next.js app: a phone-friendly task list w
 - Conventional commits. Interface strings are Traditional Chinese; keep README instructions in sync with what the component imports and expects from the table.
 - GitHub Actions: top-level `permissions: contents: read`, raised per job only when needed.
 - GitHub Actions: pin every `uses:` to a 40-character commit SHA with a trailing `# vX.Y.Z` comment.
-- `README.md` and `README.zh-TW.md` mirror each other; update both in the same commit, including the SQL.
+- `README.md` (Traditional Chinese, default) and `README.en.md` (English) mirror each other; update both in the same commit, including the SQL.
 
 ## Where to look
 

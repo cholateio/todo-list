@@ -1,40 +1,40 @@
 # Todo List
 
-**English** | [繁體中文](README.zh-TW.md)
+**繁體中文** | [English](README.en.md)
 
-A single-page task list for people who want to jot down a chore in seconds and see what is due. Drop one component into your Next.js app, and you get a phone-friendly list that counts down to each deadline.
+一頁式的待辦清單，給想花幾秒記下一件雜事、順便看看什麼快到期的人。把一個元件放進你的 Next.js app，就有一份適合手機使用、會倒數每個期限的清單。
 
-![Task list with three open items, each showing days remaining, and a Recently Completed section below](./public/intro1.png)
+![待辦清單：三個未完成事項各自顯示剩餘天數，下方是 Recently Completed 區塊](./public/intro1.png)
 
-- **Fast entry**: a round **+** button opens a form with just a task and a due date, which defaults to 7 days from today.
-- **Deadline countdown**: each task shows days left, "due today", or days overdue instead of a raw date.
-- **Undo window**: a checked task stays under Recently Completed for 24 hours, where unchecking it brings it back.
-- **No lag**: checking a task updates the screen first and saves to Supabase in the background; a failed save reloads the list.
+- **快速新增**：圓形 **+** 按鈕會打開一個只有事項和期限兩個欄位的表單，期限預設為今天起算 7 天後。
+- **期限倒數**：每個事項顯示「剩 N 天」、「今天到期」或「已過期 N 天」，而不是直接顯示日期。
+- **可以反悔**：勾選完成的事項會在 Recently Completed 底下保留 24 小時，這段時間內取消勾選就會回到清單。
+- **不卡頓**：勾選事項時先更新畫面，再在背景存到 Supabase；儲存失敗就重新載入清單。
 
 <p>
-  <img src="./public/intro2.png" alt="Phone view of the task list" width="24%">
-  <img src="./public/intro3.png" alt="Phone view of the Add New Task form with a date picker" width="24%">
+  <img src="./public/intro2.png" alt="手機版的待辦清單" width="24%">
+  <img src="./public/intro3.png" alt="手機版的 Add New Task 表單，附日期選擇器" width="24%">
 </p>
 
-The interface text is Traditional Chinese (for example "剩 6 天"); edit the strings in `TodoApp.jsx` to change it.
+介面文字是繁體中文（例如「剩 6 天」）；想改的話，編輯 `TodoApp.jsx` 裡的字串。
 
-## How it works
+## 它怎麼運作
 
 ```
-Browser (TodoApp.jsx) ──► Supabase client ──► "Todo" table in your Supabase project
+瀏覽器 (TodoApp.jsx) ──► Supabase client ──► 你 Supabase 專案裡的 "Todo" 資料表
 ```
 
-No server code and no other service: the component talks to your Supabase project directly.
+沒有伺服器程式碼，也沒有其他服務：元件直接和你的 Supabase 專案溝通。
 
-## Install
+## 安裝
 
-Needs a Next.js app (App Router) with Tailwind CSS, and a Supabase project.
+需要：一個使用 App Router、裝了 Tailwind CSS 的 Next.js app，以及一個 Supabase 專案。
 
-1. Install the dependencies: `npm install @supabase/supabase-js sonner lucide-react`
-2. Copy `TodoApp.jsx` into your app and render it from a page, for example `app/todo/page.js` with `import TodoApp from './TodoApp'`.
-3. Create `lib/supabase.js` exporting a `supabase` client, since the component imports `@/lib/supabase`. Put your project URL and anon key in `.env.local`.
-4. Add sonner's `<Toaster />` to your root layout so error and success messages show.
-5. In Supabase, open **SQL Editor** and run:
+1. 安裝相依套件：`npm install @supabase/supabase-js sonner lucide-react`
+2. 把 `TodoApp.jsx` 複製進你的 app，在某個頁面渲染它，例如在 `app/todo/page.js` 寫 `import TodoApp from './TodoApp'`。
+3. 建立 `lib/supabase.js` 並匯出一個 `supabase` client，因為元件會 import `@/lib/supabase`。把專案網址和 anon key 放進 `.env.local`。
+4. 在 root layout 加上 sonner 的 `<Toaster />`，錯誤和成功訊息才會顯示。
+5. 在 Supabase 打開 **SQL Editor**，執行：
 
 ```sql
 CREATE TABLE "Todo" (
@@ -50,12 +50,12 @@ CREATE TABLE "Todo" (
 CREATE INDEX idx_todo_active ON "Todo"(is_completed) WHERE is_completed = FALSE;
 ```
 
-6. Under **Authentication → Policies**, add policies for the `Todo` table that fit who may read and write. The component uses the public anon key and has no login.
+6. 在 **Authentication → Policies** 為 `Todo` 資料表加上 policy，依你的情況決定誰可以讀寫。元件使用公開的 anon key，沒有登入功能。
 
-## Privacy & security
+## 隱私與安全
 
-Task text and dates go from the browser to your own Supabase project and nowhere else. The component has no analytics. Because it uses the public anon key, anyone who can reach that key can do whatever your table policies allow, so set policies before deploying publicly.
+事項內容和日期只會從瀏覽器送到你自己的 Supabase 專案，不會送到其他地方。元件沒有任何分析追蹤。因為它使用公開的 anon key，任何拿得到這把 key 的人都能做你的資料表 policy 允許的任何事，所以公開部署前要先設好 policy。
 
-## License
+## 授權
 
 [MIT](LICENSE)
