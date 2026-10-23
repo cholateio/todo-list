@@ -1,5 +1,7 @@
 # Todo List
 
+**English** | [繁體中文](README.zh-TW.md)
+
 A single-page task list for people who want to jot down a chore in seconds and see what is due. Drop one component into your Next.js app, and you get a phone-friendly list that counts down to each deadline.
 
 ![Task list with three open items, each showing days remaining, and a Recently Completed section below](./public/intro1.png)
