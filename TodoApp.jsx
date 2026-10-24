@@ -1,15 +1,92 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
-import { Plus, X, Calendar, Loader2 } from 'lucide-react';
+import { useState, useSyncExternalStore } from 'react';
+import { Plus, X, Calendar } from 'lucide-react';
+
+const STORAGE_KEY = 'todo-list';
+const KEEP_COMPLETED_MS = 24 * 60 * 60 * 1000;
+
+// 排序：有期限優先 (近到遠)，無期限墊底
+const sortTodo = (list) => {
+    return [...list].sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date) - new Date(b.due_date);
+    });
+};
+
+// Completed items are kept for 24 h so they can be unchecked; null/invalid completed_at counts as expired.
+const loadTodo = () => {
+    try {
+        const list = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!Array.isArray(list)) return [];
+        const cutoff = Date.now() - KEEP_COMPLETED_MS;
+        return list.filter(
+            (item) =>
+                item && typeof item === 'object' && (!item.is_completed || Date.parse(item.completed_at) >= cutoff),
+        );
+    } catch {
+        return [];
+    }
+};
+
+const saveTodo = (list) => {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+// crypto.randomUUID only exists in secure contexts; plain http on a LAN IP lacks it.
+const newId = () => globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+// useSyncExternalStore needs a stable snapshot, so the list is cached until the next write.
+let cache = null;
+const listeners = new Set();
+
+const notify = () => listeners.forEach((listener) => listener());
+
+// Another tab wrote the list: drop the cache so the next write cannot overwrite that tab's changes.
+const onStorage = (e) => {
+    if (e.key !== STORAGE_KEY && e.key !== null) return;
+    cache = null;
+    notify();
+};
+
+// Re-reading on first subscribe re-applies the 24 h cutoff after client-side navigation remounts the page.
+const subscribe = (listener) => {
+    if (listeners.size === 0) {
+        cache = null;
+        window.addEventListener('storage', onStorage);
+    }
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) window.removeEventListener('storage', onStorage);
+    };
+};
+
+const getSnapshot = () => {
+    if (cache === null) cache = sortTodo(loadTodo());
+    return cache;
+};
+
+// null = not hydrated yet; server and first client render both show the loading skeleton.
+const getServerSnapshot = () => null;
+
+const setTodo = (next) => {
+    cache = next;
+    notify();
+    return saveTodo(next);
+};
 
 export default function TodoApp() {
-    const [todoList, setTodoList] = useState([]);
+    const todoList = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+    const isLoading = todoList === null;
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [saveFailed, setSaveFailed] = useState(false);
 
     // 取得今天的 7 天後日期 (預設期限)
     const getDefaultDueDate = () => {
@@ -28,15 +105,6 @@ export default function TodoApp() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    // 排序：有期限優先 (近到遠)，無期限墊底
-    const sortTodo = (list) => {
-        return [...list].sort((a, b) => {
-            if (!a.due_date) return 1;
-            if (!b.due_date) return -1;
-            return new Date(a.due_date) - new Date(b.due_date);
-        });
-    };
-
     // 計算剩餘天數與對應視覺樣式
     const getDaysRemainingInfo = (dateString) => {
         if (!dateString) return null;
@@ -52,87 +120,40 @@ export default function TodoApp() {
         return { text: `已過期 ${Math.abs(diffDays)} 天`, style: 'text-red-800/70 font-bold' };
     };
 
-    // 載入事項 (包含未完成與 24 小時內完成的待定項目)
-    const fetchTodo = async () => {
-        try {
-            setIsLoading(true);
-            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            const { data, error } = await supabase
-                .from('Todo')
-                .select('*')
-                .or(`is_completed.eq.false,and(is_completed.eq.true,completed_at.gte.${yesterday})`)
-                .order('due_date', { ascending: true, nullsFirst: false });
-
-            if (error) throw error;
-            setTodoList(data);
-        } catch (err) {
-            toast.error('無法載入待辦事項');
-            console.error('Fetch fail:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchTodo();
-    }, []);
-
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        if (!formData.content.trim()) return toast.error('請填寫事項內容');
+        const content = formData.content.trim();
+        if (!content) return;
 
-        try {
-            setIsSubmitting(true);
-            const { data, error } = await supabase
-                .from('Todo')
-                .insert([
-                    {
-                        content: formData.content,
-                        due_date: formData.due_date || null,
-                        is_completed: false,
-                    },
-                ])
-                .select();
-
-            if (error) throw error;
-
-            setTodoList((prev) => sortTodo([...prev, data[0]]));
-            setFormData({ content: '', due_date: getDefaultDueDate() });
-            setIsModalOpen(false);
-            toast.success('事項已新增');
-        } catch (err) {
-            console.error('Insert fail:', err);
-            toast.error('新增失敗，請稍後再試');
-        } finally {
-            setIsSubmitting(false);
-        }
+        const newItem = {
+            id: newId(),
+            content,
+            due_date: formData.due_date || null,
+            is_completed: false,
+            completed_at: null,
+            created_at: new Date().toISOString(),
+        };
+        setSaveFailed(!setTodo(sortTodo([...getSnapshot(), newItem])));
+        setFormData({ content: '', due_date: getDefaultDueDate() });
+        setIsModalOpen(false);
     };
 
     // 切換完成狀態
-    const toggleTodo = async (id, currentStatus) => {
+    const toggleTodo = (id, currentStatus) => {
         const newStatus = !currentStatus;
         const timestamp = newStatus ? new Date().toISOString() : null;
 
-        setTodoList((prev) =>
-            prev.map((item) => (item.id === id ? { ...item, is_completed: newStatus, completed_at: timestamp } : item)),
+        setSaveFailed(
+            !setTodo(
+                getSnapshot().map((item) =>
+                    item.id === id ? { ...item, is_completed: newStatus, completed_at: timestamp } : item,
+                ),
+            ),
         );
-
-        try {
-            const { error } = await supabase
-                .from('Todo')
-                .update({ is_completed: newStatus, completed_at: timestamp })
-                .eq('id', id);
-
-            if (error) throw error;
-        } catch (err) {
-            console.error('Update fail:', err);
-            toast.error('狀態更新失敗');
-            fetchTodo();
-        }
     };
 
-    const activeTodo = todoList.filter((item) => !item.is_completed);
-    const completedTodo = todoList.filter((item) => item.is_completed);
+    const activeTodo = (todoList ?? []).filter((item) => !item.is_completed);
+    const completedTodo = (todoList ?? []).filter((item) => item.is_completed);
 
     return (
         <div className="min-h-screen bg-[#E5E0DC] text-[#3f4a4e] font-sans p-6 md:p-10">
@@ -141,6 +162,10 @@ export default function TodoApp() {
                     <h1 className="text-3xl font-extrabold tracking-wide mb-2">Daily Task</h1>
                     <p className="opacity-70 text-sm tracking-wide">生活雜事收納區</p>
                 </header>
+
+                {saveFailed && (
+                    <p className="text-sm text-red-800/70 mb-4">無法儲存到瀏覽器，重新整理後變更會消失</p>
+                )}
 
                 {/* --- 進行中事項清單 --- */}
                 {isLoading ? (
@@ -242,6 +267,8 @@ export default function TodoApp() {
                                     type="text"
                                     name="content"
                                     required
+                                    pattern=".*\S.*"
+                                    title="請填寫事項內容"
                                     placeholder="例如：整理 GCP 帳號、訂演唱會門票..."
                                     className="w-full bg-white/50 border-2 border-[#3f4a4e]/10 rounded-xl px-4 py-3 focus:outline-none focus:border-[#3f4a4e]/40 transition-colors"
                                     value={formData.content}
@@ -270,10 +297,8 @@ export default function TodoApp() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
-                                    className="px-6 py-2.5 bg-[#3f4a4e] text-[#E5E0DC] rounded-xl font-bold tracking-widest text-sm uppercase shadow-lg shadow-[#3f4a4e]/20 hover:bg-[#2c3437] transition-all disabled:opacity-70 flex items-center gap-2"
+                                    className="px-6 py-2.5 bg-[#3f4a4e] text-[#E5E0DC] rounded-xl font-bold tracking-widest text-sm uppercase shadow-lg shadow-[#3f4a4e]/20 hover:bg-[#2c3437] transition-all"
                                 >
-                                    {isSubmitting && <Loader2 className="animate-spin" size={16} />}
                                     Save Task
                                 </button>
                             </div>
