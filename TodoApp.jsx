@@ -9,8 +9,7 @@ const KEEP_COMPLETED_MS = 24 * 60 * 60 * 1000;
 // 排序：有期限優先 (近到遠)，無期限墊底
 const sortTodo = (list) => {
     return [...list].sort((a, b) => {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
+        if (!a.due_date || !b.due_date) return Number(!a.due_date) - Number(!b.due_date);
         return new Date(a.due_date) - new Date(b.due_date);
     });
 };
@@ -37,6 +36,17 @@ const saveTodo = (list) => {
     } catch {
         return false;
     }
+};
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+// Local calendar date as YYYY-MM-DD. toISOString() gives the UTC date, a day behind before 08:00 in UTC+8.
+const toLocalDateString = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+// YYYY-MM-DD as local midnight. new Date('YYYY-MM-DD') is UTC midnight, the previous day west of UTC.
+const parseLocalDate = (s) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
 };
 
 // crypto.randomUUID only exists in secure contexts; plain http on a LAN IP lacks it.
@@ -92,7 +102,7 @@ export default function TodoApp() {
     const getDefaultDueDate = () => {
         const date = new Date();
         date.setDate(date.getDate() + 7);
-        return date.toISOString().split('T')[0];
+        return toLocalDateString(date);
     };
 
     const [formData, setFormData] = useState({
@@ -110,8 +120,7 @@ export default function TodoApp() {
         if (!dateString) return null;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const due = new Date(dateString);
-        due.setHours(0, 0, 0, 0);
+        const due = parseLocalDate(dateString);
 
         const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
 
